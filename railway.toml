@@ -1,0 +1,14 @@
+# railway.toml - Configuración para Railway
+[build]
+builder = "nixpacks"
+
+[deploy]
+healthcheckPath = "/api/health"
+healthcheckTimeout = 300
+restartPolicyType = "always"
+
+[environments.production]
+variables = [
+  "NODE_ENV=production",
+  "JWT_EXPIRES_IN=7d"
+]
