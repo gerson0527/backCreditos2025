@@ -25,36 +25,10 @@ const userRoutes = require('./routes/userRoutes'); // Nueva ruta para gestión d
 // Middleware
 // Configuración CORS para producción
 const corsOptions = {
-  origin: function (origin, callback) {
-    // Lista de dominios permitidos para producción
-    const allowedOrigins = [
-      process.env.FRONTEND_URL, // Frontend en Railway/Vercel
-    ].filter(Boolean); // Filtrar valores undefined/null
-    
-    // En desarrollo, ser más permisivo
-    if (process.env.NODE_ENV !== 'production') {
-      // Permitir localhost solo en desarrollo
-      allowedOrigins.push('http://localhost:5173', 'http://localhost:3000');
-      
-      // Permitir requests sin origin en desarrollo
-      if (!origin) {
-        return callback(null, true);
-      }
-    }
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      if (process.env.NODE_ENV !== 'production') {
-        callback(null, true); // Ser permisivo en desarrollo
-      } else {
-        callback(new Error('No permitido por CORS'));
-      }
-    }
-  },
-  credentials: true, // Permite el envío de cookies
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
+  origin: true, // Permite todos los orígenes
+  credentials: false, // No necesita credenciales
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 };
 app.use(cors(corsOptions));
 // Manejo explícito de OPTIONS para preflight
