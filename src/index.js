@@ -23,9 +23,35 @@ const comisionRoutes = require('./routes/comisionRoutes');
 const userRoutes = require('./routes/userRoutes'); // Nueva ruta para gestión de usuarios
 
 // Middleware
-// Configuración específica para desarrollo
+// Configuración CORS para producción
 const corsOptions = {
-  origin: 'http://localhost:5173', // Asegúrate que coincide con tu frontend
+  origin: function (origin, callback) {
+    // Lista de dominios permitidos para producción
+    const allowedOrigins = [
+      process.env.FRONTEND_URL, // Frontend en Railway/Vercel
+    ].filter(Boolean); // Filtrar valores undefined/null
+    
+    // En desarrollo, ser más permisivo
+    if (process.env.NODE_ENV !== 'production') {
+      // Permitir localhost solo en desarrollo
+      allowedOrigins.push('http://localhost:5173', 'http://localhost:3000');
+      
+      // Permitir requests sin origin en desarrollo
+      if (!origin) {
+        return callback(null, true);
+      }
+    }
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      if (process.env.NODE_ENV !== 'production') {
+        callback(null, true); // Ser permisivo en desarrollo
+      } else {
+        callback(new Error('No permitido por CORS'));
+      }
+    }
+  },
   credentials: true, // Permite el envío de cookies
   allowedHeaders: ['Content-Type', 'Authorization'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
@@ -50,6 +76,16 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/comisiones', comisionRoutes);
 app.use('/api/users', userRoutes); // Nueva ruta para gestión de usuarios
+
+// 🩺 Endpoint de salud básico
+app.get('/api/health', (req, res) => {
+  res.status(200).json({
+    status: 'OK',
+    message: '✅ Servidor funcionando correctamente',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
 
 // 🔍 Endpoint para verificar conexión a base de datos
 app.get('/api/db-info', async (req, res) => {
@@ -146,14 +182,10 @@ const PORT = process.env.PORT || 3000;
 
 // Initialize database connection and run migrations
 connectDB().then(async () => {
-  console.log('🔄 Ejecutando migraciones automáticamente...');
   await runMigrations();
   
   app.listen(PORT, () => {
-    console.log(`🚀 Servidor corriendo en el puerto ${PORT}`);
-    console.log(`📊 Database info: http://localhost:${PORT}/api/db-info`);
-    console.log(`🔧 Run migrations: POST http://localhost:${PORT}/api/migrate`);
-    console.log(`📋 Database status: http://localhost:${PORT}/api/db-status`);
+    console.log(`🚀 Servidor iniciado en puerto ${PORT}`);
   });
 }).catch(error => {
   console.error('Error al iniciar el servidor:', error);
