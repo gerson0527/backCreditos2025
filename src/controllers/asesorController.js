@@ -34,7 +34,7 @@ exports.getAllAsesores = async (req, res) => {
             COUNT(CASE WHEN c.fechaSolicitud >= :inicioMes THEN 1 END)
           )
         END as tasaAprobacion
-      FROM asesor a
+      FROM Asesor a
       LEFT JOIN Creditos c ON a.id = c.asesorId AND c.fechaSolicitud >= :inicioMes
       GROUP BY a.id, a.nombre, a.email, a.telefono, a.cargo, a.sucursal, a.fechaIngreso, a.createdAt, a.updatedAt
       ORDER BY a.nombre ASC
