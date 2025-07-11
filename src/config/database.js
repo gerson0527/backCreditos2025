@@ -8,33 +8,37 @@ let sequelize;
 
 if (process.env.DATABASE_URL) {
   // Si hay DATABASE_URL, úsala directamente
-  console.log('📝 Usando DATABASE_URL para conexión');
   sequelize = new Sequelize(process.env.DATABASE_URL, {
     dialect: 'mysql',
     logging: false,
   });
 } else if (process.env.MYSQL_URL) {
   // Railway proporciona MYSQL_URL automáticamente
-  console.log('📝 Usando MYSQL_URL de Railway');
   sequelize = new Sequelize(process.env.MYSQL_URL, {
     dialect: 'mysql',
     logging: false,
   });
 } else {
   // Configuración con parámetros separados
-  console.log('📝 Usando configuración con parámetros separados');
-  // En Railway (producción) usar host interno, en desarrollo usar host público
-  const host = isRailway 
-    ? (process.env.MYSQLHOST || 'mysql.railway.internal')  // Host interno para Railway
-    : process.env.DB_HOST;      // Host público para desarrollo local
-    
-  const port = isRailway 
-    ? (process.env.MYSQLPORT || 3306)                      // Puerto interno para Railway
-    : process.env.DB_PORT;      // Puerto público para desarrollo local
-
-  const database = process.env.MYSQLDATABASE || process.env.DB_NAME || 'railway';
-  const username = process.env.MYSQLUSER || process.env.DB_USER || 'root';
-  const password = process.env.MYSQLPASSWORD || process.env.DB_PASSWORD;
+  
+  // Si no hay variables de Railway configuradas, usar valores por defecto para pruebas
+  let host, port, database, username, password;
+  
+  if (isRailway) {
+    // En Railway, si no hay variables automáticas, usar valores por defecto
+    host = process.env.MYSQLHOST || 'trolley.proxy.rlwy.net';  // Host público como fallback
+    port = process.env.MYSQLPORT || 54383;                     // Puerto público como fallback
+    database = process.env.MYSQLDATABASE || 'railway';
+    username = process.env.MYSQLUSER || 'root';
+    password = process.env.MYSQLPASSWORD || 'FVYQliIvPzAhKbTnAlhZnCnPuGKJZalV';
+  } else {
+    // Desarrollo local
+    host = process.env.DB_HOST;
+    port = process.env.DB_PORT;
+    database = process.env.DB_NAME;
+    username = process.env.DB_USER;
+    password = process.env.DB_PASSWORD;
+  }
 
   sequelize = new Sequelize(database, username, password, {
     host: host,
@@ -47,43 +51,9 @@ if (process.env.DATABASE_URL) {
 const connectDB = async () => {
   try {
     await sequelize.authenticate();
-    
-    // Mostrar información detallada de la conexión
-    const config = sequelize.config;
-    console.log('✅ Conexión a MySQL establecida correctamente');
-    console.log(`📊 Base de datos: ${config.database}`);
-    console.log(`🖥️  Host: ${config.host}`);
-    console.log(`🔌 Puerto: ${config.port}`);
-    console.log(`👤 Usuario: ${config.username}`);
-    console.log(`🌐 Entorno: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`🚂 Railway Env: ${process.env.RAILWAY_ENVIRONMENT_NAME || 'No detectado'}`);
-    console.log(`📝 DATABASE_URL: ${process.env.DATABASE_URL ? 'Configurada' : 'No configurada'}`);
-
-    // Verificar si es Railway
-    if (config.host && (config.host.includes('railway') || config.host.includes('rlwy'))) {
-      console.log('🚂 ¡Conectado a Railway Database!');
-    }
-    
-    // Mostrar si está usando host interno o externo
-    if (config.host === 'mysql.railway.internal') {
-      console.log('🔗 Usando conexión INTERNA de Railway (Producción)');
-    } else if (config.host && config.host.includes('rlwy')) {
-      console.log('🌐 Usando conexión EXTERNA de Railway (Desarrollo local)');
-    }
-    
+    console.log('✅ Conexión a MySQL establecida correctamente');  
   } catch (error) {
     console.error('❌ Error al conectar a MySQL:', error);
-    console.log('🔍 Información de debug:');
-    console.log(`   NODE_ENV: ${process.env.NODE_ENV}`);
-    console.log(`   RAILWAY_ENVIRONMENT_NAME: ${process.env.RAILWAY_ENVIRONMENT_NAME}`);
-    console.log(`   DATABASE_URL: ${process.env.DATABASE_URL ? 'Configurada' : 'No configurada'}`);
-    console.log(`   MYSQL_URL: ${process.env.MYSQL_URL ? 'Configurada' : 'No configurada'}`);
-    console.log(`   MYSQLHOST: ${process.env.MYSQLHOST || 'No configurado'}`);
-    console.log(`   MYSQLPORT: ${process.env.MYSQLPORT || 'No configurado'}`);
-    console.log(`   MYSQLDATABASE: ${process.env.MYSQLDATABASE || 'No configurado'}`);
-    console.log(`   MYSQLUSER: ${process.env.MYSQLUSER || 'No configurado'}`);
-    console.log(`   DB_HOST: ${process.env.DB_HOST}`);
-    console.log(`   DB_PORT: ${process.env.DB_PORT}`);
     process.exit(1);
   }
 };
@@ -106,15 +76,9 @@ const runMigrations = async () => {
       console.error('⚠️ Warnings en migraciones:', stderr);
     }
     
-    console.log('✅ Migraciones ejecutadas correctamente');
-    console.log(stdout);
-    
     // Mostrar tablas existentes
     const [results] = await sequelize.query('SHOW TABLES');
-    console.log('📋 Tablas en la base de datos:');
     if (results.length === 0) {
-      console.log('   ⚠️ No se encontraron tablas. Revisando configuración...');
-      
       // Verificar si existen archivos de migración
       const fs = require('fs');
       const path = require('path');
@@ -122,28 +86,15 @@ const runMigrations = async () => {
       
       if (fs.existsSync(migrationPath)) {
         const migrationFiles = fs.readdirSync(migrationPath);
-        console.log(`   📁 Archivos de migración encontrados: ${migrationFiles.length}`);
-        migrationFiles.forEach((file, index) => {
-          console.log(`      ${index + 1}. ${file}`);
-        });
-      } else {
-        console.log('   ❌ No se encontró la carpeta migrations/');
       }
-    } else {
-      results.forEach((table, index) => {
-        const tableName = Object.values(table)[0];
-        console.log(`   ${index + 1}. ${tableName}`);
-      });
     }
     
   } catch (error) {
     console.error('❌ Error ejecutando migraciones:', error.message);
     
     // Fallback: intentar con sync si las migraciones fallan
-    console.log('🔄 Intentando crear tablas con sync como fallback...');
     try {
       await sequelize.sync({ force: false, alter: false });
-      console.log('✅ Sync ejecutado como fallback');
     } catch (syncError) {
       console.error('❌ Error en sync fallback:', syncError.message);
     }
@@ -160,13 +111,8 @@ const checkDatabaseStatus = async () => {
     const [serverInfo] = await sequelize.query('SELECT VERSION() as version');
     const [dbInfo] = await sequelize.query(`SELECT DATABASE() as current_db`);
     
-    console.log('📊 Estado de la base de datos:');
-    console.log(`   Versión MySQL: ${serverInfo[0].version}`);
-    console.log(`   Base de datos actual: ${dbInfo[0].current_db}`);
-    
     // Contar tablas
     const [tables] = await sequelize.query('SHOW TABLES');
-    console.log(`   Total de tablas: ${tables.length}`);
     
     return true;
   } catch (error) {
