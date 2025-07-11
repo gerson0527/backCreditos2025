@@ -26,7 +26,7 @@ const userRoutes = require('./routes/userRoutes'); // Nueva ruta para gestión d
 // Configuración CORS para producción
 const corsOptions = {
   origin: true, // Permite todos los orígenes
-  credentials: false, // No necesita credenciales
+  credentials: true, // No necesita credenciales
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 };
@@ -131,6 +131,44 @@ app.get('/api/db-status', async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: '❌ Error verificando base de datos',
+      error: error.message
+    });
+  }
+});
+
+// 👤 Endpoint para crear superadmin (solo en producción)
+app.post('/api/create-superadmin', async (req, res) => {
+  try {
+    // Solo permitir en producción con autenticación básica
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ 
+        message: '❌ Autorización requerida' 
+      });
+    }
+
+    const token = authHeader.split(' ')[1];
+    if (token !== process.env.SETUP_TOKEN) {
+      return res.status(403).json({ 
+        message: '❌ Token de configuración inválido' 
+      });
+    }
+
+    const createSuperAdmin = require('../scripts/create-superadmin');
+    await createSuperAdmin();
+    
+    res.status(200).json({
+      message: '✅ Usuario superadmin creado exitosamente',
+      credentials: {
+        username: 'admin',
+        password: 'admin123'
+      },
+      warning: '⚠️ Cambia la contraseña después del primer login',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: '❌ Error creando superadmin',
       error: error.message
     });
   }
