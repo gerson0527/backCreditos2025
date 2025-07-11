@@ -58,46 +58,29 @@ const connectDB = async () => {
   }
 };
 
-// Función para ejecutar migraciones automáticamente
+// Función SIMPLE para migraciones (SIN TIMEOUT)
 const runMigrations = async () => {
   try {
-    console.log('🔄 Ejecutando migraciones...');
+    console.log('🔄 Sincronizando base de datos...');
     
-    const { exec } = require('child_process');
-    const { promisify } = require('util');
-    const execAsync = promisify(exec);
+    // Verificar si las tablas existen
+    const [tables] = await sequelize.query('SHOW TABLES');
     
-    // Ejecutar migraciones reales usando sequelize-cli
-    const { stdout, stderr } = await execAsync('npx sequelize-cli db:migrate', {
-      cwd: process.cwd()
-    });
-    
-    if (stderr && !stderr.includes('warning')) {
-      console.error('⚠️ Warnings en migraciones:', stderr);
+    if (tables.length === 0) {
+      console.log('📦 No hay tablas, creando estructura inicial...');
+      await sequelize.sync({ force: false });
+      console.log('✅ Tablas creadas correctamente');
+    } else {
+      console.log('📋 Tablas existentes encontradas, sincronizando...');
+      await sequelize.sync({ alter: true });
+      console.log('✅ Base de datos sincronizada');
     }
     
-    // Mostrar tablas existentes
-    const [results] = await sequelize.query('SHOW TABLES');
-    if (results.length === 0) {
-      // Verificar si existen archivos de migración
-      const fs = require('fs');
-      const path = require('path');
-      const migrationPath = path.join(process.cwd(), 'migrations');
-      
-      if (fs.existsSync(migrationPath)) {
-        const migrationFiles = fs.readdirSync(migrationPath);
-      }
-    }
+    return true;
     
   } catch (error) {
-    console.error('❌ Error ejecutando migraciones:', error.message);
-    
-    // Fallback: intentar con sync si las migraciones fallan
-    try {
-      await sequelize.sync({ force: false, alter: false });
-    } catch (syncError) {
-      console.error('❌ Error en sync fallback:', syncError.message);
-    }
+    console.error('❌ Error en sincronización:', error.message);
+    return false;
   }
 };
 
