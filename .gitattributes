@@ -1,0 +1,12 @@
+# Normaliza todos los textos a LF en el repo
+* text=auto
+
+# Fuerza LF en archivos JS y JSON
+*.js text eol=lf
+*.json text eol=lf
+
+# Evita que binarios se toquen
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
