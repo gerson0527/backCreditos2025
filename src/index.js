@@ -4,7 +4,7 @@ const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
 require('dotenv').config();
 const frases = require('./frases');
-const { sequelize, connectDB } = require('./config/database');
+const { sequelize, connectDB, runMigrations, checkDatabaseStatus } = require('./config/database');
 const db = require('../models');
 const app = express();
 
@@ -50,6 +50,82 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/comisiones', comisionRoutes);
 app.use('/api/users', userRoutes); // Nueva ruta para gestión de usuarios
+
+// 🔍 Endpoint para verificar conexión a base de datos
+app.get('/api/db-info', async (req, res) => {
+  try {
+    const config = sequelize.config;
+    const dbInfo = {
+      database: config.database,
+      host: config.host,
+      port: config.port,
+      username: config.username,
+      dialect: config.dialect,
+      environment: process.env.NODE_ENV || 'development',
+      isRailway: config.host && (config.host.includes('railway') || config.host.includes('rlwy')),
+      connectionStatus: 'Connected'
+    };
+    
+    // Verificar que la conexión funcione
+    await sequelize.authenticate();
+    
+    res.status(200).json({
+      message: '✅ Database connection verified',
+      info: dbInfo
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: '❌ Database connection failed',
+      error: error.message
+    });
+  }
+});
+
+// 🔄 Endpoint para ejecutar migraciones
+app.post('/api/migrate', async (req, res) => {
+  try {
+    console.log('🔄 Iniciando migraciones desde endpoint...');
+    await runMigrations();
+    
+    res.status(200).json({
+      message: '✅ Migraciones ejecutadas correctamente',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Error en migraciones:', error);
+    res.status(500).json({
+      message: '❌ Error ejecutando migraciones',
+      error: error.message
+    });
+  }
+});
+
+// 📊 Endpoint para verificar estado de la base de datos
+app.get('/api/db-status', async (req, res) => {
+  try {
+    const isHealthy = await checkDatabaseStatus();
+    
+    if (isHealthy) {
+      res.status(200).json({
+        message: '✅ Base de datos funcionando correctamente',
+        status: 'healthy',
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      res.status(500).json({
+        message: '❌ Problemas con la base de datos',
+        status: 'unhealthy',
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      message: '❌ Error verificando base de datos',
+      error: error.message
+    });
+  }
+});
+
 app.use('/api/frases-motivacion', async (req, res) => {
   try {
     res.json(frases);
@@ -68,10 +144,16 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 3000;
 
-// Initialize database connection
-connectDB().then(() => {
+// Initialize database connection and run migrations
+connectDB().then(async () => {
+  console.log('🔄 Ejecutando migraciones automáticamente...');
+  await runMigrations();
+  
   app.listen(PORT, () => {
-    console.log(`Servidor corriendo en el puerto ${PORT}`);
+    console.log(`🚀 Servidor corriendo en el puerto ${PORT}`);
+    console.log(`📊 Database info: http://localhost:${PORT}/api/db-info`);
+    console.log(`🔧 Run migrations: POST http://localhost:${PORT}/api/migrate`);
+    console.log(`📋 Database status: http://localhost:${PORT}/api/db-status`);
   });
 }).catch(error => {
   console.error('Error al iniciar el servidor:', error);
