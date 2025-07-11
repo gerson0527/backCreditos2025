@@ -8,22 +8,35 @@ let sequelize;
 
 if (process.env.DATABASE_URL) {
   // Si hay DATABASE_URL, úsala directamente
+  console.log('📝 Usando DATABASE_URL para conexión');
   sequelize = new Sequelize(process.env.DATABASE_URL, {
+    dialect: 'mysql',
+    logging: false,
+  });
+} else if (process.env.MYSQL_URL) {
+  // Railway proporciona MYSQL_URL automáticamente
+  console.log('📝 Usando MYSQL_URL de Railway');
+  sequelize = new Sequelize(process.env.MYSQL_URL, {
     dialect: 'mysql',
     logging: false,
   });
 } else {
   // Configuración con parámetros separados
+  console.log('📝 Usando configuración con parámetros separados');
   // En Railway (producción) usar host interno, en desarrollo usar host público
   const host = isRailway 
-    ? 'mysql.railway.internal'  // Host interno para Railway
+    ? (process.env.MYSQLHOST || 'mysql.railway.internal')  // Host interno para Railway
     : process.env.DB_HOST;      // Host público para desarrollo local
     
   const port = isRailway 
-    ? 3306                      // Puerto interno para Railway
+    ? (process.env.MYSQLPORT || 3306)                      // Puerto interno para Railway
     : process.env.DB_PORT;      // Puerto público para desarrollo local
 
-  sequelize = new Sequelize(process.env.DB_NAME, process.env.DB_USER, process.env.DB_PASSWORD, {
+  const database = process.env.MYSQLDATABASE || process.env.DB_NAME || 'railway';
+  const username = process.env.MYSQLUSER || process.env.DB_USER || 'root';
+  const password = process.env.MYSQLPASSWORD || process.env.DB_PASSWORD;
+
+  sequelize = new Sequelize(database, username, password, {
     host: host,
     port: port,
     dialect: 'mysql',
@@ -33,6 +46,10 @@ if (process.env.DATABASE_URL) {
 
 const connectDB = async () => {
   try {
+    await sequelize.authenticate();
+    
+    // Mostrar información detallada de la conexión
+    const config = sequelize.config;
     console.log('✅ Conexión a MySQL establecida correctamente');
     console.log(`📊 Base de datos: ${config.database}`);
     console.log(`🖥️  Host: ${config.host}`);
@@ -40,11 +57,7 @@ const connectDB = async () => {
     console.log(`👤 Usuario: ${config.username}`);
     console.log(`🌐 Entorno: ${process.env.NODE_ENV || 'development'}`);
     console.log(`🚂 Railway Env: ${process.env.RAILWAY_ENVIRONMENT_NAME || 'No detectado'}`);
-    
-    await sequelize.authenticate();
-    
-    // Mostrar información detallada de la conexión
-    const config = sequelize.config;
+    console.log(`📝 DATABASE_URL: ${process.env.DATABASE_URL ? 'Configurada' : 'No configurada'}`);
 
     // Verificar si es Railway
     if (config.host && (config.host.includes('railway') || config.host.includes('rlwy'))) {
@@ -64,6 +77,11 @@ const connectDB = async () => {
     console.log(`   NODE_ENV: ${process.env.NODE_ENV}`);
     console.log(`   RAILWAY_ENVIRONMENT_NAME: ${process.env.RAILWAY_ENVIRONMENT_NAME}`);
     console.log(`   DATABASE_URL: ${process.env.DATABASE_URL ? 'Configurada' : 'No configurada'}`);
+    console.log(`   MYSQL_URL: ${process.env.MYSQL_URL ? 'Configurada' : 'No configurada'}`);
+    console.log(`   MYSQLHOST: ${process.env.MYSQLHOST || 'No configurado'}`);
+    console.log(`   MYSQLPORT: ${process.env.MYSQLPORT || 'No configurado'}`);
+    console.log(`   MYSQLDATABASE: ${process.env.MYSQLDATABASE || 'No configurado'}`);
+    console.log(`   MYSQLUSER: ${process.env.MYSQLUSER || 'No configurado'}`);
     console.log(`   DB_HOST: ${process.env.DB_HOST}`);
     console.log(`   DB_PORT: ${process.env.DB_PORT}`);
     process.exit(1);
