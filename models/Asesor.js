@@ -37,7 +37,7 @@ module.exports = (sequelize, DataTypes) => {
     defaultValue: 0
   }
 }, {
-    tableName: 'asesor'
+    tableName: 'Asesor'
   });
 
   Asesor.associate = function(models) {
