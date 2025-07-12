@@ -179,7 +179,7 @@ exports.getUltimasSolicitudes = async (req, res) => {
                 END AS tituloActividad,
                 TIMESTAMPDIFF(MINUTE, c.updatedAt, NOW()) AS minutosTranscurridos
             FROM Creditos c
-            INNER JOIN clientes cl ON c.clienteId = cl.id
+            INNER JOIN Clientes cl ON c.clienteId = cl.id
             LEFT JOIN bancos b ON c.bancoid = b.id
             LEFT JOIN financieras f ON c.financieraId = f.id
             ORDER BY c.updatedAt DESC
@@ -244,7 +244,7 @@ exports.getDistribucionTipos = async (req, res) => {
                 tipo,
                 COUNT(*) as cantidad,
                 (SELECT COUNT(*) 
-                    FROM creditos 
+                    FROM Creditos 
                     WHERE fechaSolicitud >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
                 ) as total
             FROM Creditos
@@ -274,7 +274,7 @@ exports.getDistribucionEstados = async (req, res) => {
                 COUNT(*) AS cantidad,
                 (
                     SELECT COUNT(*)
-                    FROM creditos
+                    FROM Creditos
                     WHERE fechaSolicitud >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
                 ) AS total
             FROM Creditos
