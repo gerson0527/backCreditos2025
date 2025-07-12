@@ -584,8 +584,8 @@ exports.getResumenPorBanco = async (req, res) => {
         b.nombre AS banco, 
         COUNT(c.id) AS total_creditos, 
         SUM(c.monto) AS total_monto 
-      FROM creditos c 
-      LEFT JOIN bancos b ON b.id = c.bancoId 
+      FROM Creditos c 
+      LEFT JOIN Bancos b ON b.id = c.bancoId 
       GROUP BY b.nombre 
       ORDER BY total_monto DESC limit 5;
     `, {
@@ -606,8 +606,8 @@ exports.getResumenPorFinanciera = async (req, res) => {
         f.nombre AS banco, 
         COUNT(c.id) AS total_creditos, 
         SUM(c.monto) AS total_monto 
-      FROM creditos c 
-      LEFT JOIN financieras f ON f.id = c.financieraId 
+      FROM Creditos c 
+      LEFT JOIN Financieras f ON f.id = c.financieraId 
       GROUP BY f.nombre 
       ORDER BY total_monto DESC limit 5;
     `, {
@@ -628,11 +628,11 @@ exports.getResumenPorEstado = async (req, res) => {
         estado, 
         COUNT(*) AS cantidad, 
         ROUND((COUNT(*) / total.total_creditos) * 100, 1) AS porcentaje 
-      FROM creditos 
+      FROM Creditos 
       JOIN ( 
-        SELECT COUNT(*) AS total_creditos FROM creditos 
+        SELECT COUNT(*) AS total_creditos FROM Creditos 
       ) AS total ON TRUE 
-      GROUP BY estado, total.total_creditos 
+      GROUP BY estado, total.total_creditos  
       ORDER BY cantidad DESC limit 5;
     `, {
       type: db.sequelize.QueryTypes.SELECT
