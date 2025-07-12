@@ -56,20 +56,83 @@ exports.getClienteById = async (req, res) => {
 
 exports.createCliente = async (req, res) => {
   try {
-    const cliente = await Cliente.create(req.body); // Cambiado de new Cliente a Cliente.create
+    const { dni, email } = req.body;
+
+    // Validar que el DNI no exista
+    const clienteExistenteDNI = await Cliente.findOne({
+      where: { dni: dni }
+    });
+
+    if (clienteExistenteDNI) { 
+      return res.status(400).json({ 
+        message: 'Ya existe un cliente con este DNI' 
+      });
+    }
+
+    // Validar que el email no exista
+    const clienteExistenteEmail = await Cliente.findOne({
+      where: { email: email }
+    });
+
+    if (clienteExistenteEmail) {
+      return res.status(400).json({ 
+        message: 'Ya existe un cliente con este correo electrónico' 
+      });
+    }
+
+    // Si no existe, crear el cliente
+    const cliente = await Cliente.create(req.body);
     res.status(201).json(cliente);
   } catch (error) {
+    console.error('Error creando cliente:', error);
     res.status(400).json({ message: error.message });
   }
 };
 
 exports.updateCliente = async (req, res) => {
   try {
+    const clienteId = req.params.id;
+    const { dni, email } = req.body;
+
+    // Validar que el DNI no exista en otro cliente (excluyendo el actual)
+    if (dni) {
+      const clienteExistenteDNI = await Cliente.findOne({
+        where: { 
+          dni: dni,
+          id: { [Op.ne]: clienteId } // Excluir el cliente actual
+        }
+      });
+
+      if (clienteExistenteDNI) {
+        return res.status(400).json({ 
+          message: 'Ya existe otro cliente con este DNI' 
+        });
+      }
+    }
+
+    // Validar que el email no exista en otro cliente (excluyendo el actual)
+    if (email) {
+      const clienteExistenteEmail = await Cliente.findOne({
+        where: { 
+          email: email,
+          id: { [Op.ne]: clienteId } // Excluir el cliente actual
+        }
+      });
+
+      if (clienteExistenteEmail) {
+        return res.status(400).json({ 
+          message: 'Ya existe otro cliente con este correo electrónico' 
+        });
+      }
+    }
+
+    // Si las validaciones pasan, actualizar el cliente
     const [updated] = await Cliente.update(req.body, {
-      where: { id: req.params.id }
+      where: { id: clienteId }
     });
+    
     if (updated) {
-      const updatedCliente = await Cliente.findByPk(req.params.id);
+      const updatedCliente = await Cliente.findByPk(clienteId);
       res.json(updatedCliente);
     } else {
       res.status(404).json({ message: 'Cliente no encontrado' });

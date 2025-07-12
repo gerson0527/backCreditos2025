@@ -197,12 +197,15 @@ exports.cambiarPassword = async (req, res) => {
 exports.obtenerPerfil = async (req, res) => {
   try {
     const userId = req.user.id; // Obtenido del middleware de autenticación
-
+    console.log('Obteniendo perfil para el usuario:', userId);
+    
     // Buscar al usuario por ID
     const user = await User.findByPk(userId, {
       attributes: ['id', 'username', 'nombres', 'apellidos', 'correo', 'telefono', 'role', 'theme', 'createdAt']
     });
-
+    
+    console.log('Usuario encontrado:', user?.username);
+    
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -210,9 +213,17 @@ exports.obtenerPerfil = async (req, res) => {
       });
     }
 
+    // Obtener permisos del usuario usando la utilidad existente
+    const userForFrontend = formatUserForFrontend(user.toJSON());
+
     res.json({
       success: true,
       user: {
+        id: user.id,
+        username: user.username,
+        email: user.correo, // Para consistencia con la interfaz del frontend
+        rol: user.role,
+        permisos: userForFrontend.permisos,
         nombres: user.nombres,
         apellidos: user.apellidos,
         correo: user.correo,
