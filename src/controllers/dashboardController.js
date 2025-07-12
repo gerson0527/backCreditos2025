@@ -181,7 +181,7 @@ exports.getUltimasSolicitudes = async (req, res) => {
             FROM Creditos c
             INNER JOIN Clientes cl ON c.clienteId = cl.id
             LEFT JOIN Bancos b ON c.bancoid = b.id
-            LEFT JOIN financieras f ON c.financieraId = f.id
+            LEFT JOIN Financieras f ON c.financieraId = f.id 
             ORDER BY c.updatedAt DESC
             LIMIT ?
         `, {
