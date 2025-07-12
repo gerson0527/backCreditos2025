@@ -132,7 +132,7 @@ exports.getCreditosMeses = async (req, res) => {
           SUM(CASE WHEN estado = 'Aprobado' THEN 1 ELSE 0 END) AS aprobados,
           SUM(CASE WHEN estado = 'Rechazado' THEN 1 ELSE 0 END) AS rechazados,
           SUM(CASE WHEN estado IN ('En Revisión', 'Pendiente') THEN 1 ELSE 0 END) AS pendientes
-      FROM creditos
+      FROM Creditos
       WHERE YEAR(createdAt) = :year
       GROUP BY mes, mes_num
       ORDER BY mes_num;
@@ -262,7 +262,7 @@ exports.exportarExcel = async (req, res) => {
         b.nombre AS banco, 
         COUNT(c.id) AS total_creditos, 
         SUM(c.monto) AS total_monto 
-      FROM creditos c 
+      FROM Creditos c 
       LEFT JOIN bancos b ON b.id = c.bancoId 
       WHERE c.createdAt BETWEEN :fechaInicio AND :fechaFin
       GROUP BY b.nombre 
@@ -279,8 +279,8 @@ exports.exportarExcel = async (req, res) => {
         COUNT(c.id) AS total_creditos,
         COALESCE(SUM(c.monto), 0) AS monto_total,
         ROUND(AVG(CASE WHEN c.estado = 'Aprobado' THEN 100 ELSE 0 END), 1) AS tasa_aprobacion
-      FROM asesor a
-      LEFT JOIN creditos c ON a.id = c.asesorId 
+      FROM Asesor a
+      LEFT JOIN Creditos c ON a.id = c.asesorId 
         AND c.createdAt BETWEEN :fechaInicio AND :fechaFin
       GROUP BY a.id, a.nombre
       ORDER BY monto_total DESC;
