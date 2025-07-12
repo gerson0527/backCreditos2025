@@ -180,7 +180,7 @@ exports.getUltimasSolicitudes = async (req, res) => {
                 TIMESTAMPDIFF(MINUTE, c.updatedAt, NOW()) AS minutosTranscurridos
             FROM Creditos c
             INNER JOIN Clientes cl ON c.clienteId = cl.id
-            LEFT JOIN bancos b ON c.bancoid = b.id
+            LEFT JOIN Bancos b ON c.bancoid = b.id
             LEFT JOIN financieras f ON c.financieraId = f.id
             ORDER BY c.updatedAt DESC
             LIMIT ?
