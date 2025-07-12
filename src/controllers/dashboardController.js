@@ -13,13 +13,13 @@ exports.getCreditosProcesos = async (req, res) => {
         FROM 
             (
                 SELECT COUNT(*) AS total
-                FROM creditos
+                FROM Creditos
                 WHERE estado IN ('En Revisión', 'Pendiente')
                 AND fechaSolicitud >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
             ) AS actual,
             (
                 SELECT COUNT(*) AS total
-                FROM creditos
+                FROM Creditos
                 WHERE estado IN ('En Revisión', 'Pendiente')
                 AND fechaSolicitud BETWEEN 
                     DATE_SUB(CURRENT_DATE(), INTERVAL 14 DAY) 
@@ -56,7 +56,7 @@ exports.getMontoSolicitudes = async (req, res) => {
                         AND MONTH(fechaSolicitud) = MONTH(CURRENT_DATE) - 1 
                         THEN monto ELSE 0 
                     END) AS monto_anterior
-                FROM creditos
+                FROM Creditos
                 WHERE YEAR(fechaSolicitud) = YEAR(CURRENT_DATE)
                 AND MONTH(fechaSolicitud) BETWEEN MONTH(CURRENT_DATE) - 1 AND MONTH(CURRENT_DATE)
             ) AS montos
@@ -86,7 +86,7 @@ exports.getTasaAprobacion = async (req, res) => {
                     COUNT(CASE WHEN estado = 'Aprobado' AND MONTH(fechaSolicitud) = MONTH(CURRENT_DATE) - 1 THEN 1 END) /
                     NULLIF(COUNT(CASE WHEN estado IN ('Aprobado', 'Rechazado') AND MONTH(fechaSolicitud) = MONTH(CURRENT_DATE) - 1 THEN 1 END), 0) AS tasa_anterior
                 FROM
-                    creditos
+                    Creditos
                 WHERE
                     YEAR(fechaSolicitud) = YEAR(CURRENT_DATE)
                     AND MONTH(fechaSolicitud) BETWEEN MONTH(CURRENT_DATE) - 1 AND MONTH(CURRENT_DATE)
@@ -127,7 +127,7 @@ exports.getTiempoPromedio = async (req, res) => {
                         END
                     ) AS tiempo_anterior
                 FROM
-                    creditos
+                    Creditos
                 WHERE
                     YEAR(fechaSolicitud) = YEAR(CURRENT_DATE)
                     AND MONTH(fechaSolicitud) BETWEEN MONTH(CURRENT_DATE) - 1 AND MONTH(CURRENT_DATE)
@@ -178,7 +178,7 @@ exports.getUltimasSolicitudes = async (req, res) => {
                     ELSE 'Estado Desconocido'
                 END AS tituloActividad,
                 TIMESTAMPDIFF(MINUTE, c.updatedAt, NOW()) AS minutosTranscurridos
-            FROM creditos c
+            FROM Creditos c
             INNER JOIN clientes cl ON c.clienteId = cl.id
             LEFT JOIN bancos b ON c.bancoid = b.id
             LEFT JOIN financieras f ON c.financieraId = f.id
@@ -247,7 +247,7 @@ exports.getDistribucionTipos = async (req, res) => {
                     FROM creditos 
                     WHERE fechaSolicitud >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
                 ) as total
-            FROM creditos
+            FROM Creditos
             WHERE fechaSolicitud >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
             GROUP BY tipo
             ) as subquery
@@ -277,7 +277,7 @@ exports.getDistribucionEstados = async (req, res) => {
                     FROM creditos
                     WHERE fechaSolicitud >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
                 ) AS total
-            FROM creditos
+            FROM Creditos
             WHERE fechaSolicitud >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
             GROUP BY estado
             ) AS subquery
