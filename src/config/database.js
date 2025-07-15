@@ -58,45 +58,53 @@ const connectDB = async () => {
   }
 };
 
-// Función para ejecutar migraciones usando sync directo
+// Función para ejecutar migraciones usando Sequelize CLI
 const runMigrations = async () => {
   try {
-    console.log('🔄 Sincronizando base de datos con Sequelize...');
+    console.log('🔄 Ejecutando migraciones con Sequelize CLI...');
     
     // Verificar conexión primero
     await sequelize.authenticate();
     console.log('✅ Conexión a base de datos verificada');
     
-    // Verificar si las tablas existen
-    const [tables] = await sequelize.query('SHOW TABLES');
-    console.log(`� Tablas existentes: ${tables.length}`);
+    // Ejecutar migraciones usando child_process
+    const { exec } = require('child_process');
+    const path = require('path');
     
-    if (tables.length === 0) {
-      console.log('📦 No hay tablas, creando estructura inicial...');
-      await sequelize.sync({ force: false });
-      console.log('✅ Tablas creadas correctamente');
-    } else {
-      console.log('📋 Tablas existentes encontradas, sincronizando cambios...');
-      
-      // Cargar todos los modelos para asegurar que estén disponibles
-      const models = require('../../models');
-      console.log(`📋 Modelos cargados: ${Object.keys(models).length}`);
-      
-      await sequelize.sync({ alter: true });
-      console.log('✅ Base de datos sincronizada');
-    }
+    // Cambiar al directorio del backend
+    const backendDir = path.join(__dirname, '../../');
     
-    // Verificar tablas después de la sincronización
-    const [newTables] = await sequelize.query('SHOW TABLES');
-    console.log(`� Tablas después de sync: ${newTables.length}`);
-    newTables.forEach(table => {
-      console.log(`  - ${Object.values(table)[0]}`);
+    return new Promise((resolve, reject) => {
+      exec('npx sequelize-cli db:migrate', 
+        { cwd: backendDir, env: process.env }, 
+        (error, stdout, stderr) => {
+          if (error) {
+            console.error('❌ Error ejecutando migraciones:', error);
+            console.error('stderr:', stderr);
+            reject(error);
+            return;
+          }
+          
+          console.log('✅ Migraciones ejecutadas correctamente');
+          console.log(stdout);
+          
+          // Verificar tablas después de las migraciones
+          sequelize.query('SHOW TABLES').then(([tables]) => {
+            console.log(`📊 Tablas después de migraciones: ${tables.length}`);
+            tables.forEach(table => {
+              console.log(`  - ${Object.values(table)[0]}`);
+            });
+            resolve(true);
+          }).catch(err => {
+            console.error('Error verificando tablas:', err);
+            resolve(true); // Continuar aunque falle la verificación
+          });
+        }
+      );
     });
     
-    return true;
-    
   } catch (error) {
-    console.error('❌ Error en sincronización:', error.message);
+    console.error('❌ Error en migraciones:', error.message);
     return false;
   }
 };
