@@ -71,7 +71,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// � Endpoint para obtener usuarios para chat
+// 💬 Endpoint para obtener usuarios para chat
 app.get('/api/chat/users', async (req, res) => {
   try {
     const { User } = require('../models');
@@ -97,20 +97,28 @@ app.get('/api/chat/users', async (req, res) => {
   }
 });
 
-// �🔄 Endpoint para ejecutar migraciones
+// 🔄 Endpoint para ejecutar TODAS las migraciones desde el principio
 app.post('/api/migrate', async (req, res) => {
   try {
-    console.log('🔄 Iniciando migraciones desde endpoint...');
+    console.log('🔄 Iniciando ejecución completa de migraciones...');
+    
+    // Eliminar tabla de seguimiento de migraciones para forzar re-ejecución
+    const { sequelize } = require('./config/database');
+    await sequelize.query('DROP TABLE IF EXISTS SequelizeMeta');
+    console.log('🗑️ Tabla SequelizeMeta eliminada - se ejecutarán todas las migraciones');
+    
+    // Ejecutar todas las migraciones desde el principio
     await runMigrations();
     
     res.status(200).json({
-      message: '✅ Migraciones ejecutadas correctamente',
-      timestamp: new Date().toISOString()
+      message: '✅ Todas las migraciones ejecutadas correctamente desde el principio',
+      timestamp: new Date().toISOString(),
+      note: 'Se eliminó SequelizeMeta para forzar re-ejecución completa'
     });
   } catch (error) {
-    console.error('❌ Error en migraciones:', error);
+    console.error('❌ Error en migraciones completas:', error);
     res.status(500).json({
-      message: '❌ Error ejecutando migraciones',
+      message: '❌ Error ejecutando migraciones completas',
       error: error.message
     });
   }
