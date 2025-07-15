@@ -1,12 +1,15 @@
 const express = require('express');
+const http = require('http');
+const socketIo = require('socket.io');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
 require('dotenv').config();
 const frases = require('./frases');
-const { sequelize, connectDB, runMigrations, checkDatabaseStatus } = require('./config/database');
+const { sequelize, connectDB, runMigrations } = require('./config/database');
 const db = require('../models');
 const app = express();
+const server = http.createServer(app);
 
 // Importar rutas
 const authRoutes = require('./routes/authRoutes'); 
@@ -21,8 +24,8 @@ const dashboardRoutes = require('./routes/dashboardRoutes');
 const searchRoutes = require('./routes/searchRoutes');
 const comisionRoutes = require('./routes/comisionRoutes');
 const userRoutes = require('./routes/userRoutes'); // Nueva ruta para gestión de usuarios
+const messageRoutes = require('./routes/messageRoutes'); // Nueva ruta para mensajes
 
-// Middleware
 // Configuración CORS para producción
 const corsOptions = {
   origin: true, // Permite todos los orígenes
@@ -31,6 +34,12 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 };
 app.use(cors(corsOptions));
+
+// Configurar Socket.IO con CORS
+const io = socketIo(server, {
+  cors: corsOptions
+});
+
 // Manejo explícito de OPTIONS para preflight
 //app.options('*', cors(corsOptions));
 app.use(cookieParser());
@@ -50,6 +59,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/comisiones', comisionRoutes);
 app.use('/api/users', userRoutes); // Nueva ruta para gestión de usuarios
+app.use('/api/chat', messageRoutes); // Nueva ruta para mensajes
 
 // 🩺 Endpoint de salud básico
 app.get('/api/health', (req, res) => {
@@ -61,37 +71,33 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// 🔍 Endpoint para verificar conexión a base de datos
-app.get('/api/db-info', async (req, res) => {
+// � Endpoint para obtener usuarios para chat
+app.get('/api/chat/users', async (req, res) => {
   try {
-    const config = sequelize.config;
-    const dbInfo = {
-      database: config.database,
-      host: config.host,
-      port: config.port,
-      username: config.username,
-      dialect: config.dialect,
-      environment: process.env.NODE_ENV || 'development',
-      isRailway: config.host && (config.host.includes('railway') || config.host.includes('rlwy')),
-      connectionStatus: 'Connected'
-    };
-    
-    // Verificar que la conexión funcione
-    await sequelize.authenticate();
-    
-    res.status(200).json({
-      message: '✅ Database connection verified',
-      info: dbInfo
+    const { User } = require('../models');
+    const users = await User.findAll({
+      attributes: ['id', 'nombres', 'apellidos', 'correo', 'role'],
+      order: [['nombres', 'ASC']]
     });
+
+    const formattedUsers = users.map(user => ({
+      id: user.id,
+      nombre: user.nombres || 'Sin nombre',
+      apellido: user.apellidos || '',
+      email: user.correo || '',
+      rol: user.role || 'user',
+      isOnline: connectedUsers.has(user.id), // Estado real basado en conexiones
+      lastSeen: !connectedUsers.has(user.id) ? '5 min' : null
+    }));
+
+    res.json(formattedUsers);
   } catch (error) {
-    res.status(500).json({
-      message: '❌ Database connection failed',
-      error: error.message
-    });
+    console.error('Error obteniendo usuarios:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
-// 🔄 Endpoint para ejecutar migraciones
+// �🔄 Endpoint para ejecutar migraciones
 app.post('/api/migrate', async (req, res) => {
   try {
     console.log('🔄 Iniciando migraciones desde endpoint...');
@@ -105,70 +111,6 @@ app.post('/api/migrate', async (req, res) => {
     console.error('❌ Error en migraciones:', error);
     res.status(500).json({
       message: '❌ Error ejecutando migraciones',
-      error: error.message
-    });
-  }
-});
-
-// 📊 Endpoint para verificar estado de la base de datos
-app.get('/api/db-status', async (req, res) => {
-  try {
-    const isHealthy = await checkDatabaseStatus();
-    
-    if (isHealthy) {
-      res.status(200).json({
-        message: '✅ Base de datos funcionando correctamente',
-        status: 'healthy',
-        timestamp: new Date().toISOString()
-      });
-    } else {
-      res.status(500).json({
-        message: '❌ Problemas con la base de datos',
-        status: 'unhealthy',
-        timestamp: new Date().toISOString()
-      });
-    }
-  } catch (error) {
-    res.status(500).json({
-      message: '❌ Error verificando base de datos',
-      error: error.message
-    });
-  }
-});
-
-// 👤 Endpoint para crear superadmin (solo en producción)
-app.post('/api/create-superadmin', async (req, res) => {
-  try {
-    // Solo permitir en producción con autenticación básica
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ 
-        message: '❌ Autorización requerida' 
-      });
-    }
-
-    const token = authHeader.split(' ')[1];
-    if (token !== process.env.SETUP_TOKEN) {
-      return res.status(403).json({ 
-        message: '❌ Token de configuración inválido' 
-      });
-    }
-
-    const createSuperAdmin = require('../scripts/create-superadmin');
-    await createSuperAdmin();
-    
-    res.status(200).json({
-      message: '✅ Usuario superadmin creado exitosamente',
-      credentials: {
-        username: 'admin',
-        password: 'admin123'
-      },
-      warning: '⚠️ Cambia la contraseña después del primer login',
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(500).json({
-      message: '❌ Error creando superadmin',
       error: error.message
     });
   }
@@ -192,12 +134,144 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 3000;
 
+// Socket.IO para mensajería en tiempo real
+const connectedUsers = new Map(); // Mapa de userId -> socketId
+
+// Hacer connectedUsers accesible desde los controladores
+app.set('connectedUsers', connectedUsers);
+
+io.on('connection', (socket) => {
+  console.log('📱 Usuario conectado:', socket.id);
+
+  // Autenticar usuario con socket
+  socket.on('authenticate', (userId) => {
+    if (userId) {
+      connectedUsers.set(userId, socket.id);
+      socket.userId = userId;
+      socket.join(`user_${userId}`); // Unirse a su propia sala
+      console.log(`👤 Usuario ${userId} autenticado con socket ${socket.id}`);
+      
+      // Notificar a otros usuarios que este usuario está en línea
+      socket.broadcast.emit('user_online', { userId, isOnline: true });
+    }
+  });
+
+  // Enviar mensaje
+  socket.on('send_message', async (data) => {
+    try {
+      const { receiverId, content } = data;
+      const senderId = socket.userId;
+
+      if (!senderId || !receiverId || !content) {
+        socket.emit('message_error', { error: 'Datos incompletos' });
+        return;
+      }
+
+      // Guardar mensaje en la base de datos
+      const { Message } = require('../models');
+      const message = await Message.create({
+        sender_id: senderId,
+        receiver_id: receiverId,
+        message: content.trim(),
+        timestamp: new Date(),
+        is_read: false
+      });
+
+      // Formatear mensaje para envío
+      const formattedMessage = {
+        id: message.id,
+        senderId: message.sender_id,
+        receiverId: message.receiver_id,
+        content: message.message,
+        timestamp: message.timestamp,
+        isRead: message.is_read
+      };
+
+      // Enviar mensaje al receptor si está conectado
+      const receiverSocketId = connectedUsers.get(receiverId);
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit('new_message', formattedMessage);
+      }
+
+      // Confirmar envío al emisor
+      socket.emit('message_sent', formattedMessage);
+
+      console.log(`💬 Mensaje enviado de ${senderId} a ${receiverId}`);
+    } catch (error) {
+      console.error('Error enviando mensaje:', error);
+      socket.emit('message_error', { error: 'Error interno del servidor' });
+    }
+  });
+
+  // Marcar mensajes como leídos
+  socket.on('mark_as_read', async (data) => {
+    try {
+      const { senderId } = data;
+      const receiverId = socket.userId;
+
+      if (!receiverId || !senderId) {
+        return;
+      }
+
+      const { Message } = require('../models');
+      await Message.update(
+        { is_read: true },
+        {
+          where: {
+            sender_id: senderId,
+            receiver_id: receiverId,
+            is_read: false
+          }
+        }
+      );
+
+      // Notificar al emisor que sus mensajes fueron leídos
+      const senderSocketId = connectedUsers.get(senderId);
+      if (senderSocketId) {
+        io.to(senderSocketId).emit('messages_read', { readById: receiverId });
+      }
+
+      console.log(`✅ Mensajes marcados como leídos de ${senderId} a ${receiverId}`);
+    } catch (error) {
+      console.error('Error marcando mensajes como leídos:', error);
+    }
+  });
+
+  // Usuario escribiendo
+  socket.on('typing', (data) => {
+    const { receiverId, isTyping } = data;
+    const receiverSocketId = connectedUsers.get(receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit('user_typing', {
+        userId: socket.userId,
+        isTyping
+      });
+    }
+  });
+
+  // Desconexión
+  socket.on('disconnect', () => {
+    if (socket.userId) {
+      connectedUsers.delete(socket.userId);
+      console.log(`👋 Usuario ${socket.userId} desconectado`);
+      
+      // Notificar a otros usuarios que este usuario está desconectado
+      socket.broadcast.emit('user_online', { 
+        userId: socket.userId, 
+        isOnline: false 
+      });
+    }
+    console.log('📱 Socket desconectado:', socket.id);
+  });
+});
+
 // Initialize database connection and run migrations
 connectDB().then(async () => {
   await runMigrations();
   
-  app.listen(PORT, () => {
+  server.listen(PORT, () => {
     console.log(`🚀 Servidor iniciado en puerto ${PORT}`);
+    console.log(`📡 Socket.IO servidor listo para conexiones`);
   });
 }).catch(error => {
   console.error('Error al iniciar el servidor:', error);

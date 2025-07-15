@@ -15,6 +15,7 @@ exports.createBanco = async (req, res) => {
     const banco = await Banco.create(req.body);
     res.status(201).json(banco);
   } catch (error) {
+    console.error('Error creando banco:', error);
     res.status(400).json({ message: error.message });
   }
 };

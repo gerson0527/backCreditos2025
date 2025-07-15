@@ -15,6 +15,7 @@ exports.createFinanciera = async (req, res) => {
     const financiera = await Financiera.create(req.body);
     res.status(201).json(financiera);
   } catch (error) {
+    console.error('Error creando financiera:', error);
     res.status(400).json({ message: error.message });
   }
 };

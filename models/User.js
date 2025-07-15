@@ -232,6 +232,18 @@ module.exports = (sequelize, DataTypes) => {
 
   User.associate = function(models) {
     // Define aquí las asociaciones si las hay
+    
+    // Un usuario puede enviar muchos mensajes
+    User.hasMany(models.Message, {
+      foreignKey: 'sender_id',
+      as: 'sentMessages'
+    });
+
+    // Un usuario puede recibir muchos mensajes
+    User.hasMany(models.Message, {
+      foreignKey: 'receiver_id',
+      as: 'receivedMessages'
+    });
   };
 
   return User;

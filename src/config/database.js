@@ -39,7 +39,7 @@ if (process.env.DATABASE_URL) {
     username = process.env.DB_USER;
     password = process.env.DB_PASSWORD;
   }
-
+  
   sequelize = new Sequelize(database, username, password, {
     host: host,
     port: port,
@@ -58,23 +58,40 @@ const connectDB = async () => {
   }
 };
 
-// Función SIMPLE para migraciones (SIN TIMEOUT)
+// Función para ejecutar migraciones usando sync directo
 const runMigrations = async () => {
   try {
-    console.log('🔄 Sincronizando base de datos...');
+    console.log('🔄 Sincronizando base de datos con Sequelize...');
+    
+    // Verificar conexión primero
+    await sequelize.authenticate();
+    console.log('✅ Conexión a base de datos verificada');
     
     // Verificar si las tablas existen
     const [tables] = await sequelize.query('SHOW TABLES');
+    console.log(`� Tablas existentes: ${tables.length}`);
     
     if (tables.length === 0) {
       console.log('📦 No hay tablas, creando estructura inicial...');
       await sequelize.sync({ force: false });
       console.log('✅ Tablas creadas correctamente');
     } else {
-      console.log('📋 Tablas existentes encontradas, sincronizando...');
+      console.log('📋 Tablas existentes encontradas, sincronizando cambios...');
+      
+      // Cargar todos los modelos para asegurar que estén disponibles
+      const models = require('../../models');
+      console.log(`📋 Modelos cargados: ${Object.keys(models).length}`);
+      
       await sequelize.sync({ alter: true });
       console.log('✅ Base de datos sincronizada');
     }
+    
+    // Verificar tablas después de la sincronización
+    const [newTables] = await sequelize.query('SHOW TABLES');
+    console.log(`� Tablas después de sync: ${newTables.length}`);
+    newTables.forEach(table => {
+      console.log(`  - ${Object.values(table)[0]}`);
+    });
     
     return true;
     
