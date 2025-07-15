@@ -103,17 +103,71 @@ module.exports = {
       }
     });
 
-    // Agregar índices para mejorar el rendimiento
-    await queryInterface.addIndex('Comisions', ['asesorId']);
-    await queryInterface.addIndex('Comisions', ['periodo']);
-    await queryInterface.addIndex('Comisions', ['estado']);
-    await queryInterface.addIndex('Comisions', ['tipoEntidad']);
-    await queryInterface.addIndex('Comisions', ['bancoid']);
-    await queryInterface.addIndex('Comisions', ['financieraId']);
+    // Agregar índices para mejorar el rendimiento (con verificación de existencia)
+    try {
+      await queryInterface.addIndex('Comisions', ['asesorId'], {
+        name: 'idx_comisions_asesor_id'
+      });
+    } catch (error) {
+      if (!error.message.includes('Duplicate key name')) throw error;
+    }
+    
+    try {
+      await queryInterface.addIndex('Comisions', ['periodo'], {
+        name: 'idx_comisions_periodo'
+      });
+    } catch (error) {
+      if (!error.message.includes('Duplicate key name')) throw error;
+    }
+    
+    try {
+      await queryInterface.addIndex('Comisions', ['estado'], {
+        name: 'idx_comisions_estado'
+      });
+    } catch (error) {
+      if (!error.message.includes('Duplicate key name')) throw error;
+    }
+    
+    try {
+      await queryInterface.addIndex('Comisions', ['tipoEntidad'], {
+        name: 'idx_comisions_tipo_entidad'
+      });
+    } catch (error) {
+      if (!error.message.includes('Duplicate key name')) throw error;
+    }
+    
+    try {
+      await queryInterface.addIndex('Comisions', ['bancoid'], {
+        name: 'idx_comisions_banco_id'
+      });
+    } catch (error) {
+      if (!error.message.includes('Duplicate key name')) throw error;
+    }
+    
+    try {
+      await queryInterface.addIndex('Comisions', ['financieraId'], {
+        name: 'idx_comisions_financiera_id'
+      });
+    } catch (error) {
+      if (!error.message.includes('Duplicate key name')) throw error;
+    }
     
     // Índice compuesto para consultas comunes
-    await queryInterface.addIndex('Comisions', ['periodo', 'asesorId']);
-    await queryInterface.addIndex('Comisions', ['periodo', 'estado']);
+    try {
+      await queryInterface.addIndex('Comisions', ['periodo', 'asesorId'], {
+        name: 'idx_comisions_periodo_asesor'
+      });
+    } catch (error) {
+      if (!error.message.includes('Duplicate key name')) throw error;
+    }
+    
+    try {
+      await queryInterface.addIndex('Comisions', ['periodo', 'estado'], {
+        name: 'idx_comisions_periodo_estado'
+      });
+    } catch (error) {
+      if (!error.message.includes('Duplicate key name')) throw error;
+    }
   },
 
   down: async (queryInterface) => {

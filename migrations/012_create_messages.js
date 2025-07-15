@@ -56,14 +56,47 @@ module.exports = {
       }
     });
 
-    // Índices para mejorar el rendimiento
-    await queryInterface.addIndex('messages', ['sender_id']);
-    await queryInterface.addIndex('messages', ['receiver_id']);
-    await queryInterface.addIndex('messages', ['timestamp']);
-    await queryInterface.addIndex('messages', ['is_read']);
+    // Índices para mejorar el rendimiento (con verificación de existencia)
+    try {
+      await queryInterface.addIndex('messages', ['sender_id'], {
+        name: 'idx_messages_sender_id'
+      });
+    } catch (error) {
+      if (!error.message.includes('Duplicate key name')) throw error;
+    }
+    
+    try {
+      await queryInterface.addIndex('messages', ['receiver_id'], {
+        name: 'idx_messages_receiver_id'
+      });
+    } catch (error) {
+      if (!error.message.includes('Duplicate key name')) throw error;
+    }
+    
+    try {
+      await queryInterface.addIndex('messages', ['timestamp'], {
+        name: 'idx_messages_timestamp'
+      });
+    } catch (error) {
+      if (!error.message.includes('Duplicate key name')) throw error;
+    }
+    
+    try {
+      await queryInterface.addIndex('messages', ['is_read'], {
+        name: 'idx_messages_is_read'
+      });
+    } catch (error) {
+      if (!error.message.includes('Duplicate key name')) throw error;
+    }
     
     // Índice compuesto para consultas de conversaciones
-    await queryInterface.addIndex('messages', ['sender_id', 'receiver_id']);
+    try {
+      await queryInterface.addIndex('messages', ['sender_id', 'receiver_id'], {
+        name: 'idx_messages_conversation'
+      });
+    } catch (error) {
+      if (!error.message.includes('Duplicate key name')) throw error;
+    }
   },
 
   async down(queryInterface, Sequelize) {

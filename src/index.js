@@ -97,23 +97,72 @@ app.get('/api/chat/users', async (req, res) => {
   }
 });
 
-// 🔄 Endpoint para ejecutar TODAS las migraciones desde el principio
+// 🔄 Endpoint para ejecutar TODAS las migraciones desde el principio (con limpieza completa)
 app.post('/api/migrate', async (req, res) => {
   try {
     console.log('🔄 Iniciando ejecución completa de migraciones...');
     
+    const { exec } = require('child_process');
+    const path = require('path');
+    const backendDir = path.join(__dirname, '../');
+    
+    // Primero, deshacer todas las migraciones
+    console.log('🗑️ Deshaciendo todas las migraciones...');
+    await new Promise((resolve, reject) => {
+      exec('npx sequelize-cli db:migrate:undo:all', 
+        { cwd: backendDir, env: process.env }, 
+        (error, stdout, stderr) => {
+          if (error) {
+            console.log('⚠️ No hay migraciones que deshacer o error al deshacer:', error.message);
+          } else {
+            console.log('✅ Migraciones deshacadas:', stdout);
+          }
+          resolve(); // Continuar aunque falle
+        }
+      );
+    });
+    
     // Eliminar tabla de seguimiento de migraciones para forzar re-ejecución
     const { sequelize } = require('./config/database');
-    await sequelize.query('DROP TABLE IF EXISTS SequelizeMeta');
-    console.log('🗑️ Tabla SequelizeMeta eliminada - se ejecutarán todas las migraciones');
+    try {
+      await sequelize.query('DROP TABLE IF EXISTS SequelizeMeta');
+      console.log('🗑️ Tabla SequelizeMeta eliminada');
+    } catch (error) {
+      console.log('⚠️ Error eliminando SequelizeMeta:', error.message);
+    }
     
     // Ejecutar todas las migraciones desde el principio
-    await runMigrations();
+    console.log('📦 Ejecutando todas las migraciones...');
+    await new Promise((resolve, reject) => {
+      exec('npx sequelize-cli db:migrate', 
+        { cwd: backendDir, env: process.env }, 
+        (error, stdout, stderr) => {
+          if (error) {
+            console.error('❌ Error ejecutando migraciones:', error);
+            console.error('stderr:', stderr);
+            reject(error);
+            return;
+          }
+          
+          console.log('✅ Migraciones ejecutadas correctamente');
+          console.log(stdout);
+          resolve();
+        }
+      );
+    });
+    
+    // Verificar tablas después de las migraciones
+    const [tables] = await sequelize.query('SHOW TABLES');
+    console.log(`📊 Tablas después de migraciones: ${tables.length}`);
+    tables.forEach(table => {
+      console.log(`  - ${Object.values(table)[0]}`);
+    });
     
     res.status(200).json({
       message: '✅ Todas las migraciones ejecutadas correctamente desde el principio',
       timestamp: new Date().toISOString(),
-      note: 'Se eliminó SequelizeMeta para forzar re-ejecución completa'
+      tablesCount: tables.length,
+      note: 'Se ejecutó migración completa con limpieza previa'
     });
   } catch (error) {
     console.error('❌ Error en migraciones completas:', error);
