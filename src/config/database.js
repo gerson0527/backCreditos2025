@@ -4,9 +4,18 @@ const { Sequelize } = require('sequelize');
 const isProduction = process.env.NODE_ENV === 'production';
 const isRailway = process.env.RAILWAY_ENVIRONMENT_NAME !== undefined;
 
+console.log('🔍 Variables de entorno en database.js:');
+console.log('- NODE_ENV:', process.env.NODE_ENV);
+console.log('- RAILWAY_ENVIRONMENT_NAME:', process.env.RAILWAY_ENVIRONMENT_NAME);
+console.log('- DATABASE_URL existe:', !!process.env.DATABASE_URL);
+console.log('- MYSQL_URL existe:', !!process.env.MYSQL_URL);
+console.log('- isProduction:', isProduction);
+console.log('- isRailway:', isRailway);
+
 let sequelize;
 
 if (process.env.DATABASE_URL) {
+  console.log('📝 database.js: Usando DATABASE_URL para configuración');
   // Si hay DATABASE_URL, úsala directamente
   sequelize = new Sequelize(process.env.DATABASE_URL, {
     dialect: 'mysql',
@@ -18,7 +27,9 @@ if (process.env.DATABASE_URL) {
       }
     }
   });
+  console.log('✅ database.js: Sequelize configurado con DATABASE_URL y SSL');
 } else if (process.env.MYSQL_URL) {
+  console.log('📝 database.js: Usando MYSQL_URL para configuración');
   // Railway proporciona MYSQL_URL automáticamente
   sequelize = new Sequelize(process.env.MYSQL_URL, {
     dialect: 'mysql',
@@ -152,5 +163,9 @@ const checkDatabaseStatus = async () => {
     return false;
   }
 };
+
+console.log('🔧 database.js: Configuración final de Sequelize:');
+console.log('- Dialect:', sequelize.getDialect());
+console.log('- Options:', sequelize.options);
 
 module.exports = { sequelize, connectDB, runMigrations, checkDatabaseStatus };
