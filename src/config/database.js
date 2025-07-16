@@ -11,12 +11,24 @@ if (process.env.DATABASE_URL) {
   sequelize = new Sequelize(process.env.DATABASE_URL, {
     dialect: 'mysql',
     logging: false,
+    dialectOptions: {
+      ssl: {
+        require: true,
+        rejectUnauthorized: false
+      }
+    }
   });
 } else if (process.env.MYSQL_URL) {
   // Railway proporciona MYSQL_URL automáticamente
   sequelize = new Sequelize(process.env.MYSQL_URL, {
     dialect: 'mysql',
     logging: false,
+    dialectOptions: {
+      ssl: {
+        require: true,
+        rejectUnauthorized: false
+      }
+    }
   });
 } else {
   // Configuración con parámetros separados
