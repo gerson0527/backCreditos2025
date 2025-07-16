@@ -11,8 +11,6 @@ const { sequelize } = require('../src/config/database');
 
 const db = {};
 
-console.log('🔄 models/index.js: Usando instancia de sequelize desde database.js');
-
 fs
   .readdirSync(__dirname)
   .filter(file => {
@@ -37,8 +35,5 @@ Object.keys(db).forEach(modelName => {
 
 db.sequelize = sequelize;
 db.Sequelize = Sequelize;
-
-console.log('✅ models/index.js: Modelos cargados con sequelize unificado');
-console.log('📊 Modelos disponibles:', Object.keys(db).filter(key => key !== 'sequelize' && key !== 'Sequelize'));
 
 module.exports = db;
